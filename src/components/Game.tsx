@@ -3,7 +3,7 @@ import Bird from './Bird';
 import Pipe from './Pipe';
 import GameOver from './GameOver';
 import GameDifficulty, { 
-  Difficulty, 
+  type Difficulty,
   DIFFICULTY_SETTINGS 
 } from './GameDifficulty';
 import StartScreen from './StartScreen';
@@ -237,11 +237,6 @@ const Game: React.FC = () => {
         <StartScreen onStart={handleGameStart} />
       ) : (
         <>
-          <GameDifficulty 
-            difficulty={difficulty}
-            onDifficultyChange={handleDifficultyChange}
-            isGameOver={isGameOver}
-          />
           <Bird birdPosition={birdPosition} rotation={rotation} />
           
           {/* Debug bird hitbox */}
