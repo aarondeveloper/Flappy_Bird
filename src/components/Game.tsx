@@ -37,7 +37,12 @@ interface PipeData {
   scored: boolean;
 }
 
-const Game: React.FC = () => {
+// Add prop type for high score updates
+interface GameProps {
+  onHighScoreUpdate: (scores: Record<Difficulty, number>) => void;
+}
+
+const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
   // Game state
   const [birdPosition, setBirdPosition] = useState(GAME_CONFIG.GAME_HEIGHT / 2);
   const [birdVelocity, setBirdVelocity] = useState(0);
@@ -47,11 +52,20 @@ const Game: React.FC = () => {
   const [rotation, setRotation] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
   const [pipeIdCounter, setPipeIdCounter] = useState(0);
-  const [highScore, setHighScore] = useState(() => {
+  const [highScores, setHighScores] = useState<Record<Difficulty, number>>(() => {
     if (typeof window !== 'undefined') {
-      return parseInt(localStorage.getItem('highScore') || '0');
+      const saved = localStorage.getItem('highScores');
+      return saved ? JSON.parse(saved) : {
+        easy: 0,
+        medium: 0,
+        hard: 0
+      };
     }
-    return 0;
+    return {
+      easy: 0,
+      medium: 0,
+      hard: 0
+    };
   });
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [particles, setParticles] = useState<Array<{x: number, y: number, velocity: number}>>([]);
@@ -124,6 +138,16 @@ const Game: React.FC = () => {
   }, [isGameOver]);
 
   const handleGameStart = useCallback((selectedDifficulty: Difficulty) => {
+    // Reset all game states to initial values
+    setBirdPosition(GAME_CONFIG.GAME_HEIGHT / 2);
+    setBirdVelocity(0);
+    setPipes([]);
+    setScore(0);
+    setIsGameOver(false);
+    setRotation(0);
+    setParticles([]);
+    
+    // Set the selected difficulty and start the game
     setDifficulty(selectedDifficulty);
     setGameStarted(true);
   }, []);
@@ -202,11 +226,16 @@ const Game: React.FC = () => {
 
   // Update high score
   useEffect(() => {
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem('highScore', score.toString());
+    if (score > highScores[difficulty]) {
+      const newScores = {
+        ...highScores,
+        [difficulty]: score
+      };
+      localStorage.setItem('highScores', JSON.stringify(newScores));
+      setHighScores(newScores);
+      onHighScoreUpdate(newScores);
     }
-  }, [score, highScore]);
+  }, [score, difficulty, highScores, onHighScoreUpdate]);
 
   // Update and render particles
   useEffect(() => {
@@ -276,16 +305,6 @@ const Game: React.FC = () => {
             }}
           >
             Score: {score}
-          </div>
-
-          <div style={{
-            position: 'absolute',
-            top: '50px',
-            right: '20px',
-            fontSize: '20px',
-            color: 'white',
-          }}>
-            High Score: {highScore}
           </div>
 
           {isGameOver && (
