@@ -7,6 +7,7 @@ import GameDifficulty, {
   DIFFICULTY_SETTINGS 
 } from './GameDifficulty';
 import StartScreen from './StartScreen';
+import SoundManager, { SoundType } from './SoundManager';
 
 // Game constants
 const GAME_CONFIG = {
@@ -24,12 +25,7 @@ const GAME_CONFIG = {
 ,
 } as const;
 
-const SOUNDS = {
-  jump: new Audio('/sounds/jump.mp3'),
-  score: new Audio('/sounds/score.mp3'),
-  hit: new Audio('/sounds/hit.mp3'),
-};
-
+// Add back the PipeData interface
 interface PipeData {
   x: number;
   height: number;
@@ -70,6 +66,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [particles, setParticles] = useState<Array<{x: number, y: number, velocity: number}>>([]);
   const [gameStarted, setGameStarted] = useState(false);
+  const [playSound, setPlaySound] = useState<((type: SoundType) => void) | null>(null);
 
   // Game logic
   const generatePipe = useCallback(() => {
@@ -85,11 +82,19 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
     };
   }, [pipeIdCounter]);
 
+  const handleSoundManagerLoad = useCallback((playSoundFn: (type: SoundType) => void) => {
+    console.log('Sound manager loaded');
+    setPlaySound(() => playSoundFn);
+  }, []);
+
   const handleJump = useCallback(() => {
     if (!isGameOver) {
       setBirdVelocity(GAME_CONFIG.JUMP_FORCE);
       setRotation(-20);
-      SOUNDS.jump.play().catch(() => {});
+      if (playSound) {
+        console.log('Playing flap sound');
+        playSound('flap');
+      }
       setParticles(prev => [...prev, 
         ...Array(5).fill(0).map(() => ({
           x: GAME_CONFIG.BIRD_X,
@@ -98,7 +103,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
         }))
       ]);
     }
-  }, [isGameOver, birdPosition]);
+  }, [isGameOver, birdPosition, playSound]);
 
   const checkCollision = useCallback((
     birdPos: number, 
@@ -187,7 +192,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
                 pipe.x < GAME_CONFIG.BIRD_X + GAME_CONFIG.BIRD_WIDTH) {
               if (checkCollision(birdPosition, pipe)) {
                 setIsGameOver(true);
-                SOUNDS.hit.play().catch(() => {});
+                playSound?.('hit');
                 break;
               }
             }
@@ -196,7 +201,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
             if (!pipe.scored && pipe.x < GAME_CONFIG.BIRD_X) {
               setScore(prev => prev + 1);
               pipe.scored = true;
-              SOUNDS.score.play().catch(() => {});
+              playSound?.('score');
             }
           }
 
@@ -211,7 +216,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
     }, 16);
 
     return () => clearInterval(gameLoop);
-  }, [birdVelocity, isGameOver, generatePipe, birdPosition, checkCollision, difficulty]);
+  }, [birdVelocity, isGameOver, generatePipe, birdPosition, checkCollision, difficulty, playSound]);
 
   // Input handlers
   useEffect(() => {
@@ -262,6 +267,7 @@ const Game: React.FC<GameProps> = ({ onHighScoreUpdate }) => {
         cursor: gameStarted ? 'pointer' : 'default',
       }}
     >
+      <SoundManager onLoad={handleSoundManagerLoad} />
       {!gameStarted ? (
         <StartScreen onStart={handleGameStart} />
       ) : (
