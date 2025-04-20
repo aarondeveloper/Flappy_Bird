@@ -2,6 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Bird from './Bird';
 import Pipe from './Pipe';
 import GameOver from './GameOver';
+import GameDifficulty, { 
+  Difficulty, 
+  DIFFICULTY_SETTINGS 
+} from './GameDifficulty';
+import StartScreen from './StartScreen';
 
 // Game constants
 const GAME_CONFIG = {
@@ -32,26 +37,6 @@ interface PipeData {
   scored: boolean;
 }
 
-type Difficulty = 'easy' | 'medium' | 'hard';
-
-const DIFFICULTY_SETTINGS = {
-  easy: {
-    PIPE_GAP: 170,
-    PIPE_SPEED: 4,
-    GRAVITY: 0.2,
-  },
-  medium: {
-    PIPE_GAP: 150,
-    PIPE_SPEED: 5,
-    GRAVITY: 0.25,
-  },
-  hard: {
-    PIPE_GAP: 130,
-    PIPE_SPEED: 6,
-    GRAVITY: 0.3,
-  },
-};
-
 const Game: React.FC = () => {
   // Game state
   const [birdPosition, setBirdPosition] = useState(GAME_CONFIG.GAME_HEIGHT / 2);
@@ -70,6 +55,7 @@ const Game: React.FC = () => {
   });
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
   const [particles, setParticles] = useState<Array<{x: number, y: number, velocity: number}>>([]);
+  const [gameStarted, setGameStarted] = useState(false);
 
   // Game logic
   const generatePipe = useCallback(() => {
@@ -131,6 +117,17 @@ const Game: React.FC = () => {
     setRotation(0);
   };
 
+  const handleDifficultyChange = useCallback((newDifficulty: Difficulty) => {
+    if (isGameOver) {
+      setDifficulty(newDifficulty);
+    }
+  }, [isGameOver]);
+
+  const handleGameStart = useCallback((selectedDifficulty: Difficulty) => {
+    setDifficulty(selectedDifficulty);
+    setGameStarted(true);
+  }, []);
+
   // Game loop
   useEffect(() => {
     const gameLoop = setInterval(() => {
@@ -138,19 +135,27 @@ const Game: React.FC = () => {
         // Update bird position with screen boundary check
         setBirdPosition(prev => {
           const newPosition = prev + birdVelocity;
-          // End game if bird goes off screen
           if (newPosition > GAME_CONFIG.GAME_HEIGHT || newPosition < 0) {
             setIsGameOver(true);
             return prev;
           }
           return newPosition;
         });
-        setBirdVelocity(prev => Math.min(prev + GAME_CONFIG.GRAVITY, 6));
+        
+        // Use difficulty settings for gravity
+        setBirdVelocity(prev => 
+          Math.min(prev + DIFFICULTY_SETTINGS[difficulty].GRAVITY, 6)
+        );
         setRotation(prev => birdVelocity > 0 ? Math.min(prev + 2, 90) : prev);
 
         // Update pipes and check collisions
         setPipes(prevPipes => {
-          const newPipes = updatePipes(prevPipes);
+          const newPipes = prevPipes
+            .map(pipe => ({ 
+              ...pipe, 
+              x: pipe.x - DIFFICULTY_SETTINGS[difficulty].PIPE_SPEED 
+            }))
+            .filter(pipe => pipe.x > -GAME_CONFIG.PIPE_WIDTH);
           
           // Check collisions
           for (const pipe of prevPipes) {
@@ -182,7 +187,7 @@ const Game: React.FC = () => {
     }, 16);
 
     return () => clearInterval(gameLoop);
-  }, [birdVelocity, isGameOver, generatePipe, birdPosition, checkCollision, updatePipes]);
+  }, [birdVelocity, isGameOver, generatePipe, birdPosition, checkCollision, difficulty]);
 
   // Input handlers
   useEffect(() => {
@@ -218,99 +223,102 @@ const Game: React.FC = () => {
 
   return (
     <div
-      onClick={handleJump}
+      onClick={gameStarted ? handleJump : undefined}
       style={{
         width: `${GAME_CONFIG.GAME_WIDTH}px`,
         height: `${GAME_CONFIG.GAME_HEIGHT}px`,
         backgroundColor: '#87CEEB',
         position: 'relative',
         overflow: 'hidden',
-        cursor: 'pointer',
+        cursor: gameStarted ? 'pointer' : 'default',
       }}
     >
-      <Bird birdPosition={birdPosition} rotation={rotation} />
-      
-      {/* Debug bird hitbox */}
-      {showDebug && (
-        <div
-          style={{
+      {!gameStarted ? (
+        <StartScreen onStart={handleGameStart} />
+      ) : (
+        <>
+          <GameDifficulty 
+            difficulty={difficulty}
+            onDifficultyChange={handleDifficultyChange}
+            isGameOver={isGameOver}
+          />
+          <Bird birdPosition={birdPosition} rotation={rotation} />
+          
+          {/* Debug bird hitbox */}
+          {showDebug && (
+            <div
+              style={{
+                position: 'absolute',
+                left: `${GAME_CONFIG.BIRD_X + 5}px`,
+                top: `${birdPosition + 3}px`,
+                width: `${GAME_CONFIG.BIRD_WIDTH}px`,
+                height: `${GAME_CONFIG.BIRD_HEIGHT}px`,
+                border: '1px solid red',
+                backgroundColor: 'rgba(255, 0, 0, 0.2)',
+                zIndex: 100,
+              }}
+            />
+          )}
+          
+          {pipes.map(pipe => (
+            <Pipe
+              key={pipe.id}
+              x={pipe.x}
+              height={pipe.height}
+              gap={DIFFICULTY_SETTINGS[difficulty].PIPE_GAP}
+              gameHeight={GAME_CONFIG.GAME_HEIGHT}
+              debug={showDebug}
+            />
+          ))}
+
+          <div
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              fontSize: '24px',
+              color: 'white',
+            }}
+          >
+            Score: {score}
+          </div>
+
+          <div style={{
             position: 'absolute',
-            left: `${GAME_CONFIG.BIRD_X + 5}px`,
-            top: `${birdPosition + 3}px`,
-            width: `${GAME_CONFIG.BIRD_WIDTH}px`,
-            height: `${GAME_CONFIG.BIRD_HEIGHT}px`,
-            border: '1px solid red',
-            backgroundColor: 'rgba(255, 0, 0, 0.2)',
-            zIndex: 100,
-          }}
-        />
+            top: '50px',
+            right: '20px',
+            fontSize: '20px',
+            color: 'white',
+          }}>
+            High Score: {highScore}
+          </div>
+
+          {isGameOver && (
+            <GameOver 
+              score={score} 
+              onRestart={resetGame}
+              currentDifficulty={difficulty}
+              onDifficultyChange={handleDifficultyChange}
+            />
+          )}
+
+          {particles.map((p, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                left: p.x,
+                top: p.y,
+                width: '4px',
+                height: '4px',
+                backgroundColor: 'white',
+                borderRadius: '50%',
+                opacity: 0.6,
+              }}
+            />
+          ))}
+        </>
       )}
-      
-      {pipes.map(pipe => (
-        <Pipe
-          key={pipe.id}
-          x={pipe.x}
-          height={pipe.height}
-          gap={GAME_CONFIG.PIPE_GAP}
-          gameHeight={GAME_CONFIG.GAME_HEIGHT}
-          debug={showDebug}
-        />
-      ))}
-
-      <div
-        style={{
-          position: 'absolute',
-          top: '20px',
-          right: '20px',
-          fontSize: '24px',
-          color: 'white',
-        }}
-      >
-        Score: {score}
-      </div>
-
-      <div style={{
-        position: 'absolute',
-        top: '50px',
-        right: '20px',
-        fontSize: '20px',
-        color: 'white',
-      }}>
-        High Score: {highScore}
-      </div>
-
-      {isGameOver && <GameOver score={score} onRestart={resetGame} />}
-
-      {/* Add difficulty selector to UI */}
-      <select 
-        value={difficulty} 
-        onChange={(e) => setDifficulty(e.target.value as Difficulty)}
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-        }}
-      >
-        <option value="easy">Easy</option>
-        <option value="medium">Medium</option>
-        <option value="hard">Hard</option>
-      </select>
-
-      {particles.map((p, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            left: p.x,
-            top: p.y,
-            width: '4px',
-            height: '4px',
-            backgroundColor: 'white',
-            borderRadius: '50%',
-            opacity: 0.6,
-          }}
-        />
-      ))}
     </div>
   );
 };

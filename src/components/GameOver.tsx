@@ -1,11 +1,19 @@
 import React from 'react';
+import { Difficulty } from './GameDifficulty';
 
 interface GameOverProps {
   score: number;
   onRestart: () => void;
+  currentDifficulty: Difficulty;
+  onDifficultyChange: (difficulty: Difficulty) => void;
 }
 
-const GameOver: React.FC<GameOverProps> = ({ score, onRestart }) => {
+const GameOver: React.FC<GameOverProps> = ({ 
+  score, 
+  onRestart, 
+  currentDifficulty,
+  onDifficultyChange 
+}) => {
   return (
     <div
       style={{
@@ -22,6 +30,22 @@ const GameOver: React.FC<GameOverProps> = ({ score, onRestart }) => {
     >
       <h2>Game Over!</h2>
       <p>Score: {score}</p>
+      <div style={{ marginBottom: '20px' }}>
+        <p>Change Difficulty:</p>
+        <select
+          value={currentDifficulty}
+          onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}
+          style={{
+            padding: '5px',
+            marginBottom: '10px',
+            borderRadius: '4px',
+          }}
+        >
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+      </div>
       <button
         onClick={onRestart}
         style={{
