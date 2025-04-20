@@ -9,9 +9,9 @@ const HighScores: React.FC<HighScoresProps> = ({ scores }) => {
   return (
     <div style={{
       position: 'absolute',
-      top: '20%',
-      left: '5%',
-      backgroundColor: 'rgba(249, 115, 22, 0.9)', // Strong orange with high opacity
+      top: '8%',
+      right: '20px',
+      backgroundColor: 'rgba(249, 115, 22, 0.9)',
       backdropFilter: 'blur(8px)',
       padding: '1.5rem',
       borderRadius: '0.5rem',
