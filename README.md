@@ -2,7 +2,7 @@
 
 A modern implementation of the classic Flappy Bird game built with Next.js, TypeScript, and Tailwind CSS.
 
-![Flappy Bird Screenshot](public/screenshot.png)
+
 
 ## Features
 
